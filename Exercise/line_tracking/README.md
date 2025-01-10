@@ -63,11 +63,9 @@ void Straight_Go1(unsigned int inspect12,double normal1,double current_angle)
 ### 电池
 
 小车用到了一个12V锂电池和两个3.7V的电池，对应的充电设备如下所示。3.7V的电池耗电会比较快，建议各位在没有进行调试的时候都做断电处理（直接把线拔了就行）。
-
-<figure style="text-align: center;">
-  <img src="assets/charge.png" alt="图片描述" style="width: 50%;" />
-  <figcaption>电池及其充电设备</figcaption>
-</figure>
+<center>
+  <img src="assets/charge.png" alt="示例图片" width="50%" />
+</center>
 
 两个电池的接线如下所示。
 
