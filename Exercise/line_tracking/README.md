@@ -2,7 +2,7 @@
 
 ## 问题出处
 
-本次练习的代码出自2024年中控杯智能小车对抗赛“疑悟队”，没有额外改动，只挖去直走部分的代码留给各位补全。建议各位不要去阅读这份屎山代码💩，根据目标函数的输入输出进行代码的补全即可。本人在挖代码的过程看着凌乱的代码已然回想起当时不太正常的精神状态☠️。
+本次练习的代码出自2024年中控杯智能小车对抗赛“疑悟队”，没有额外改动，只挖去直走部分的代码留给各位补全。建议各位不要去阅读这份屎山代码💩，根据目标函数的输入输出进行代码的补全即可，以及主函数`main.ino`的部分修改。本人在挖代码的过程看着凌乱的代码已然回想起当时不太正常的精神状态☠️。
 
 ## 所需工具
 
@@ -55,6 +55,61 @@ void Straight_Go1(unsigned int inspect12,double normal1,double current_angle)
 ```
 
 建议忽略该文件中定义了的一堆乱七八糟的变量，我也不太记得那是用来干什么的。不过如果你想从中找到一些启发也可以，但不是很必要。
+
+## 小车部分功能介绍
+
+这一部分简单介绍一下部分调试过程中需要注意的地方。
+
+### 电池
+
+小车用到了一个12V锂电池和两个3.7V的电池，对应的充电设备如下所示。3.7V的电池耗电会比较快，建议各位在没有进行调试的时候都做断电处理（直接把线拔了就行）。
+
+<figure style="text-align: center;">
+  <img src="assets/charge.png" alt="图片描述" style="width: 50%;" />
+  <figcaption>电池及其充电设备</figcaption>
+</figure>
+
+两个电池的接线如下所示。
+
+<figure style="text-align: center;">
+  <div style="display: flex; justify-content: center;">
+    <img src="assets/12.png" alt="图片1" style="width: 50%; margin-right: 10px;" />
+    <img src="assets/37.png" alt="图片2" style="width: 50%;" />
+  </div>
+  <figcaption>左图：12V接线处；右图：3.7V接线处</figcaption>
+</figure>
+
+目前两组电池都拆了下来，所以大家在装上电池的时候需要稍微考虑一下布局，之前的做法是两组电池都塞在中间的空腔中。
+
+### 简单的操作
+
+<figure style="text-align: center;">
+  <img src="assets/button.jpg" alt="图片描述" style="width: 80%;" />
+  <figcaption>按钮和显示器</figcaption>
+</figure>
+
+首先简单介绍一下小车的三个按钮，按上图视角最右端的按钮是“开/关”按钮，按下小车开始执行相应的动作。
+
+左边两个按钮用来选择小车执行的**方案**。
+
+我们对小车的路线规划是确定的，**没有**通过机器学习训练模型让小车进行自主决策。我们使用`Action_List`和`Action_Speed`两个二维数组来存储小车的动作和速度。`Action_List[i][j]`对应小车的第`i`个策略的第`j`个动作，`Action_Speed[i][j]`对应小车的第`i`个策略的第`j`个动作的动作参数(如速度、角度等)。
+
+显示器的左边两位为数字`i`，右边两位为`j`，表示当前小车正在执行方案`i`的第`j`个动作。
+
+### 关于策略
+
+各位可以直接修改`Action_List`和`Action_Speed`数组，以获得一条直行策略(如果你想尝试转弯等动作也可做相应修改)。同时下面的数组`List_num`也要修改一下参数，`List_num[i]`代表第`i`个方案的总动作数。
+
+### 关于调试
+
+首先需要上传自己的代码值Arduino开发板上，后续通过按钮选择自己需要的策略并按下“开/关”按钮运行小车开始调试。
+
+<figure style="text-align: center;">
+  <img src="assets/data.png" alt="图片描述" style="width: 60%;" />
+  <figcaption>传输端口</figcaption>
+</figure>
+
+使用数据线(工作室内有)连接电脑和Arduino开发板，在**Arduino IDE**中上传代码即可，操作很简单，可以自行上网查一下，开发板类型是**Arduino Mega2560**。
 
 ## 预期成果
 
