@@ -10,6 +10,10 @@
 
 具体操作请询问`@布拉奇 @旺仔大馒头`。后续有时间也会在本文档更新相关操作。
 
+## 提交方式
+
+将代码和视频打包成压缩包，命名格式为【姓名+巡线任务.zip】，发送至邮箱`1980501273@qq.com`。2025年3月1日前提交，预期成果可看本文档最后一节。
+
 ## 问题描述
 
 根据传感器获取的信息，调整左右车轮的速度，使小车沿白线直走。
@@ -64,23 +68,23 @@ void Straight_Go1(unsigned int inspect12,double normal1,double current_angle)
 
 小车用到了一个12V锂电池和两个3.7V的电池，对应的充电设备如下所示。3.7V的电池耗电会比较快，建议各位在没有进行调试的时候都做断电处理（直接把线拔了就行）。
 <div align=center>
-  <img src="assets/charge.png" alt="示例图片" width="360" />
+  <img src="assets/charge.png" alt="充电器" width="360" />
 </div>
 
 两个电池的接口如下所示，左图是12V电池的接口，右图是3.7V电池的接口。
 
-| ![图片1](assets/12.png) | ![图片2](assets/37.png) |
-|:----------------------------------------:|:----------------------------------------:|
+<div align=center>
+  <img src="assets/12.png" alt="12" width="360" />  <img src="assets/37.png" alt="12" width="200" />
+</div>
 
 
 目前两组电池都拆了下来，所以大家在装上电池的时候需要稍微考虑一下布局，之前的做法是两组电池都塞在中间的空腔中。
 
 ### 简单的操作
 
-<figure style="text-align: center;">
-  <img src="assets/button.jpg" alt="图片描述" style="width: 80%;" />
-  <figcaption>按钮和显示器</figcaption>
-</figure>
+<div align=center>
+  <img src="assets/button.jpg" alt="按钮和显示器" width="480" />
+</div>
 
 首先简单介绍一下小车的三个按钮，按上图视角最右端的按钮是“开/关”按钮，按下小车开始执行相应的动作。
 
@@ -98,10 +102,9 @@ void Straight_Go1(unsigned int inspect12,double normal1,double current_angle)
 
 首先需要上传自己的代码值Arduino开发板上，后续通过按钮选择自己需要的策略并按下“开/关”按钮运行小车开始调试。
 
-<figure style="text-align: center;">
-  <img src="assets/data.png" alt="图片描述" style="width: 60%;" />
-  <figcaption>传输端口</figcaption>
-</figure>
+<div align=center>
+  <img src="assets/data.png" alt="充电器" width="360" />
+</div>
 
 使用数据线(工作室内有)连接电脑和Arduino开发板，在**Arduino IDE**中上传代码即可，操作很简单，可以自行上网查一下，开发板类型是**Arduino Mega2560**。
 
@@ -109,5 +112,7 @@ void Straight_Go1(unsigned int inspect12,double normal1,double current_angle)
 
 - 一份补全的可编译的代码
 - 一段小车稳定直行的视频
+
+完成代码的补全是十分简单的，但是希望各位都可以去上手调试一下小车，让小车尽量完成直走的任务。
 
 对于该练习有任何疑问可以联系`@布拉奇 @旺仔大馒头`。
