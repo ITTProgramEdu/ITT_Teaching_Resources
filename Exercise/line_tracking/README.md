@@ -63,19 +63,15 @@ void Straight_Go1(unsigned int inspect12,double normal1,double current_angle)
 ### 电池
 
 小车用到了一个12V锂电池和两个3.7V的电池，对应的充电设备如下所示。3.7V的电池耗电会比较快，建议各位在没有进行调试的时候都做断电处理（直接把线拔了就行）。
-<center>
-  <img src="assets/charge.png" alt="示例图片" width="50%" />
-</center>
+<div align=center>
+  <img src="assets/charge.png" alt="示例图片" width="360" />
+</div>
 
-两个电池的接线如下所示。
+两个电池的接口如下所示，左图是12V电池的接口，右图是3.7V电池的接口。
 
-<figure style="text-align: center;">
-  <div style="display: flex; justify-content: center;">
-    <img src="assets/12.png" alt="图片1" style="width: 50%; margin-right: 10px;" />
-    <img src="assets/37.png" alt="图片2" style="width: 50%;" />
-  </div>
-  <figcaption>左图：12V接线处；右图：3.7V接线处</figcaption>
-</figure>
+| ![图片1](assets/12.png) | ![图片2](assets/37.png) |
+|:----------------------------------------:|:----------------------------------------:|
+
 
 目前两组电池都拆了下来，所以大家在装上电池的时候需要稍微考虑一下布局，之前的做法是两组电池都塞在中间的空腔中。
 
