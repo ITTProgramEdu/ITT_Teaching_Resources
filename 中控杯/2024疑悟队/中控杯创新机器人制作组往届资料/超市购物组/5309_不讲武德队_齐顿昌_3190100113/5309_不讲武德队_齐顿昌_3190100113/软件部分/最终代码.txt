@@ -1,0 +1,471 @@
+
+#include <Servo.h>
+//--------------------初始化参数-------------------------
+//逻辑值常数
+#define TurnSpeed 200
+#define TurnTime 600
+#define white  1
+#define black  0
+#define infinite 2147483647
+//电机接口
+#define motor3pinL 33
+#define motor3pinH 34
+#define motor3pinpwm 2
+#define motor2pinL 39
+#define motor2pinH 40
+#define motor2pinpwm 5
+#define motor1pinL 35
+#define motor1pinH 36
+#define motor1pinpwm 3
+#define motor4pinL 37
+#define motor4pinH 38
+#define motor4pinpwm 4
+//传感器接口
+const int front_sensors[] = {28,29,30,31,32};
+int front_readings[5];
+const int back_sensors[] = {23,24,25,26,27};
+int back_readings[5];
+//运动学变量
+int left_motors_speed = 0, right_motors_speed = 0;
+int previous_back_0 = black;
+int previous_back_1 = black;
+int previous_back_2 = black;
+int previous_back_3 = black;
+int previous_back_4 = black;
+int previous_front_0 = black;
+int previous_front_1 = black;
+int previous_front_2 = black;
+int previous_front_3 = black;
+int previous_front_4 = black;
+//PID常数
+float k_p = 30;
+float k_i = 0;
+float k_d = 2;
+//PID变量
+int cnt = 0;
+float front_error = 0;
+float previous_front_error = 0;
+float back_error = 0;
+float previous_back_error = 0;
+float p_term = 0, i_term = 0, d_term = 0;
+float back_p_term = 0, back_i_term = 0, back_d_term = 0;
+float previous_I = 0;
+float back_previous_I = 0;
+float pid_value = 0;
+float back_pid_value = 0;
+
+
+
+//-----------------初始化函数类--------------
+//初始化红外传感器
+void init_sensors()
+{
+   for (int front_sensor = front_sensors[0]; front_sensor <= front_sensors[4]; front_sensor++)
+      pinMode(front_sensor, INPUT);
+
+    for (int back_sensor = back_sensors[0]; back_sensor <= back_sensors[4]; back_sensor++)
+      pinMode(back_sensor, INPUT);
+}
+
+
+//初始化电机
+void init_motors()
+{
+  pinMode(motor1pinL, OUTPUT);
+  pinMode(motor1pinH, OUTPUT);
+  pinMode(motor1pinpwm, OUTPUT);
+  pinMode(motor2pinL, OUTPUT);
+  pinMode(motor2pinH, OUTPUT);
+  pinMode(motor2pinpwm, OUTPUT);
+  pinMode(motor3pinL, OUTPUT);
+  pinMode(motor3pinH, OUTPUT);
+  pinMode(motor3pinpwm, OUTPUT);
+  pinMode(motor4pinL, OUTPUT);
+  pinMode(motor4pinH, OUTPUT);
+  pinMode(motor4pinpwm, OUTPUT);
+}
+
+
+//-----------------底层控制函数类-----------------
+//更新红外传感器读数
+void read_sensors()
+{
+  for (int i = 0; i < 5; i++)
+  {
+    front_readings[i] = digitalRead(front_sensors[i]);
+    back_readings[i] = digitalRead(back_sensors[i]); 
+  }
+}
+
+//滤波地更新红外传感器读数
+void read_sensors_filtered()
+{ 
+  for(int tag=0;tag<5;tag++){//初始化reading
+    front_readings[tag] = 0;
+    back_readings[tag] = 0; 
+  }
+  for(int i=0; i<3; i++){
+    for(int j = 0; j < 5; j++){
+      front_readings[j] += digitalRead(front_sensors[j]);
+      back_readings[j] += digitalRead(back_sensors[j]); 
+    }
+  }
+  
+  for(int tag=0;tag<5;tag++){ //滤波，大于2次是1，赋值1；小于2次，赋值0
+    if(front_readings[tag]>=2){
+      front_readings[tag] = 1;
+    }else{
+      front_readings[tag] = 0;
+    }
+    if(back_readings[tag]>=2){
+      back_readings[tag] = 1;
+    }else{
+      back_readings[tag] = 0;
+    }
+  }
+}
+
+
+//给单个电机设定正反转和速度
+void control_motor(int pinL,int pinH,int pinpwm,int mode, int given_speed)
+{
+  switch(mode)
+  {
+    case 1:{//正转
+      analogWrite(pinpwm, given_speed);
+      digitalWrite(pinL, LOW);
+      digitalWrite(pinH, HIGH);
+      break;
+    }
+    case 2:{//反转
+      analogWrite(pinpwm, given_speed);
+      digitalWrite(pinL, HIGH);
+      digitalWrite(pinH, LOW);
+    break;  
+    }
+    case 3:{//自由停止
+      digitalWrite(pinpwm,0);
+      break;
+    }
+    case 0:{//刹车
+      digitalWrite(pinpwm, HIGH);
+    digitalWrite(pinL, LOW);
+    digitalWrite(pinH, LOW);
+        break;
+    }
+  }
+}
+
+
+//-----------------低级·基础动作函数-----------
+//左右轮分别以某一速度前进
+void move_forward(int left_motors_speed, int right_motors_speed)
+{
+  control_motor(motor1pinL, motor1pinH, motor1pinpwm, 1, left_motors_speed);
+  control_motor(motor2pinL, motor2pinH, motor2pinpwm, 1, left_motors_speed);
+  control_motor(motor3pinL, motor3pinH, motor3pinpwm, 1, right_motors_speed);
+  control_motor(motor4pinL, motor4pinH, motor4pinpwm, 1, right_motors_speed);
+}
+
+//左右轮分别以某一速度后退
+void move_back(int left_motors_speed, int right_motors_speed)
+{
+  control_motor(motor1pinL, motor1pinH, motor1pinpwm, 2, left_motors_speed);
+  control_motor(motor2pinL, motor2pinH, motor2pinpwm, 2, left_motors_speed);
+  control_motor(motor3pinL, motor3pinH, motor3pinpwm, 2, right_motors_speed);
+  control_motor(motor4pinL, motor4pinH, motor4pinpwm, 2, right_motors_speed);
+}
+
+//立刻停止
+void move_stop()
+{
+  control_motor(motor1pinL, motor1pinH, motor1pinpwm, 0, 255);
+  control_motor(motor2pinL, motor2pinH, motor2pinpwm, 0, 255);
+  control_motor(motor3pinL, motor3pinH, motor3pinpwm, 0, 255);
+  control_motor(motor4pinL, motor4pinH, motor4pinpwm, 0, 255);
+}
+
+//以某一速度顺时针旋转
+void move_clockwise(int given_speed) 
+{
+  control_motor(motor1pinL, motor1pinH, motor1pinpwm, 1, given_speed);
+  control_motor(motor2pinL, motor2pinH, motor2pinpwm, 1, given_speed);
+  control_motor(motor3pinL, motor3pinH, motor3pinpwm, 2, given_speed);
+  control_motor(motor4pinL, motor4pinH, motor4pinpwm, 2, given_speed);
+}
+
+//以某一速度逆时针旋转
+void move_unclockwise(int given_speed)
+{
+  control_motor(motor1pinL, motor1pinH, motor1pinpwm, 2, given_speed);
+  control_motor(motor2pinL, motor2pinH, motor2pinpwm, 2, given_speed);
+  control_motor(motor3pinL, motor3pinH, motor3pinpwm, 1, given_speed);
+  control_motor(motor4pinL, motor4pinH, motor4pinpwm, 1, given_speed);
+}
+
+
+//------------中级运动控制函数-------------
+//-----------1.PID控制三部曲------------
+//step1.计算PID控制中的误差项
+void cal_error()
+{
+  //read_sensors_filtered();
+  read_sensors();
+  //计算前方传感器得到的误差
+  if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == white) && (front_readings[3] == black) && (front_readings[4] == black)){
+    front_error = 0;
+  }else if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == white) && (front_readings[3] == white) && (front_readings[4] == black)){
+    front_error = 1;
+  }else if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == black) && (front_readings[3] == white) && (front_readings[4] == black)){
+    front_error = 2;
+  }else if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == black) && (front_readings[3] == white) && (front_readings[4] == white)){
+    front_error = 3;
+  }else if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == black) && (front_readings[3] == black) && (front_readings[4] == white)){
+    front_error = 4;
+  }else if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == black) && (front_readings[3] == black) && (front_readings[4] == black)){
+    //do nothing
+    }
+  else if((front_readings[0] == white) && (front_readings[1] == black) && (front_readings[2] == black) && (front_readings[3] == black) && (front_readings[4] == black)){
+    front_error = -4;
+  }else if((front_readings[0] == white) && (front_readings[1] == white) && (front_readings[2] == black) && (front_readings[3] == black) && (front_readings[4] == black)){
+    front_error = -3;
+  }else if((front_readings[0] == black) && (front_readings[1] == white) && (front_readings[2] == black) && (front_readings[3] == black) && (front_readings[4] == black)){
+    front_error = -2;
+  }else if((front_readings[0] == black) && (front_readings[1] == white) && (front_readings[2] == white) && (front_readings[3] == black) && (front_readings[4] == black)){
+    front_error = -1;
+  }
+  else if((front_readings[0] == white) && (front_readings[1] == white) && (front_readings[2] == white) && (front_readings[3] == white) && (front_readings[4] == white)){
+    front_error = 0;
+  //考虑三个头在白线上的情况
+  }else if((front_readings[0] == white) && (front_readings[1] == white) && (front_readings[2] == white) && (front_readings[3] == black) && (front_readings[4] == black)){
+    front_error = -2.5;
+  }else if((front_readings[0] == black) && (front_readings[1] == black) && (front_readings[2] == white) && (front_readings[3] == white) && (front_readings[4] == white)){
+    front_error = 2.5;
+  }else if((front_readings[0] == black) && (front_readings[1] == white) && (front_readings[2] == white) && (front_readings[3] == white) && (front_readings[4] == black)){
+    front_error = 0;
+  }
+  
+  //计算前方传感器得到的误差
+  if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == white) && (back_readings[3] == black) && (back_readings[4] == black)){
+    back_error = 0;
+  }else if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == white) && (back_readings[3] == white) && (back_readings[4] == black)){
+    back_error = 1;
+  }else if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == black) && (back_readings[3] == white) && (back_readings[4] == black)){
+    back_error = 2;
+  }else if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == black) && (back_readings[3] == white) && (back_readings[4] == white)){
+    back_error = 3;
+  }else if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == black) && (back_readings[3] == black) && (back_readings[4] == white)){
+    back_error = 4;
+  }else if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == black) && (back_readings[3] == black) && (back_readings[4] == black)){
+    //do nothing
+    }
+  else if((back_readings[0] == white) && (back_readings[1] == black) && (back_readings[2] == black) && (back_readings[3] == black) && (back_readings[4] == black)){
+    back_error = -4;
+  }else if((back_readings[0] == white) && (back_readings[1] == white) && (back_readings[2] == black) && (back_readings[3] == black) && (back_readings[4] == black)){
+    back_error = -3;
+  }else if((back_readings[0] == black) && (back_readings[1] == white) && (back_readings[2] == black) && (back_readings[3] == black) && (back_readings[4] == black)){
+    back_error = -2;
+  }else if((back_readings[0] == black) && (back_readings[1] == white) && (back_readings[2] == white) && (back_readings[3] == black) && (back_readings[4] == black)){
+    back_error = -1;
+  }
+  else if((back_readings[0] == white) && (back_readings[1] == white) && (back_readings[2] == white) && (back_readings[3] == white) && (back_readings[4] == white)){
+    back_error = 0;
+  //考虑三个头在白线上的情况
+  }else if((back_readings[0] == white) && (back_readings[1] == white) && (back_readings[2] == white) && (back_readings[3] == black) && (back_readings[4] == black)){
+    back_error = -2.5;
+  }else if((back_readings[0] == black) && (back_readings[1] == black) && (back_readings[2] == white) && (back_readings[3] == white) && (back_readings[4] == white)){
+    back_error = 2.5;
+  }else if((back_readings[0] == black) && (back_readings[1] == white) && (back_readings[2] == white) && (back_readings[3] == white) && (back_readings[4] == black)){
+    back_error = 0;
+  }
+  
+
+}
+//step2.根据error算pid的值
+void cal_pidvalue()
+{
+  cal_error();
+  p_term = front_error;
+  i_term = front_error + previous_I;
+  d_term = front_error - previous_front_error;
+  pid_value = (k_p * p_term) + (k_i*i_term) + (k_d*d_term);
+  previous_I = i_term;
+  previous_front_error = front_error;
+}
+void cal_back_pidvalue()
+{
+  cal_error();
+  back_p_term = back_error;
+  back_i_term = back_error + back_previous_I;
+  back_d_term = back_error - previous_back_error;
+  back_pid_value = (k_p * back_p_term) + (k_i*back_i_term) + (k_d*back_d_term);
+  back_previous_I = back_i_term;
+  previous_back_error = back_error;
+}
+//step3.实现pid循线
+void move_pid(int given_speed)//
+{
+  cal_pidvalue();
+  left_motors_speed = given_speed + pid_value;
+  right_motors_speed = given_speed - pid_value;
+  //Serial.println(left_motors_speed);
+  if (left_motors_speed < 0) left_motors_speed = 0;
+  if (right_motors_speed < 0) right_motors_speed = 0;
+  if (left_motors_speed > 255) left_motors_speed = 255;
+  if (right_motors_speed > 255) right_motors_speed = 255;
+
+  move_forward(left_motors_speed, right_motors_speed);
+}
+
+void move_back_pid(int given_speed)//
+{
+  cal_back_pidvalue();
+  left_motors_speed = given_speed - back_pid_value;
+  right_motors_speed = given_speed + back_pid_value;
+  //Serial.println(left_motors_speed);
+  if (left_motors_speed < 0) left_motors_speed = 0;
+  if (right_motors_speed < 0) right_motors_speed = 0;
+  if (left_motors_speed > 255) left_motors_speed = 255;
+  if (right_motors_speed > 255) right_motors_speed = 255;
+
+  move_back(left_motors_speed, right_motors_speed);
+}
+
+//----------------------高级函数----------------------
+//1.------------爬格子------------
+int crossing_line()//附属函数，判断是否正穿越一条白线
+{
+  read_sensors_filtered();
+  if((previous_front_0==black||previous_front_1==black||previous_front_2==black||previous_front_3==black||previous_front_4==black)&&(front_readings[0]==white&&front_readings[1]==white&&front_readings[2]==white&&front_readings[3]==white&&front_readings[4]==white)){
+    return 1;
+  }else{
+    return 0;
+  }
+}
+int back_crossing_line()//附属函数，判断是否正穿越一条白线
+{
+  read_sensors_filtered();
+  if((previous_back_0==black||previous_back_1==black||previous_back_2==black||previous_back_3==black||previous_back_4==black)&&(back_readings[0]==white&&back_readings[1]==white&&back_readings[2]==white&&back_readings[3]==white&&back_readings[4]==white)){
+    return 1;
+  }else{
+    return 0;
+  }
+}
+void move_blocks(int num_block, int given_speed)
+{
+  move_pid(given_speed);
+  //开始爬格子
+  while(1)
+  {
+    if(cnt >= num_block) break;
+    move_pid(given_speed);
+
+    if(crossing_line() == 1){
+      cnt += 1;
+      Serial.println(cnt);
+    }
+    previous_back_0 = back_readings[0];
+    previous_back_1 = back_readings[1];
+    previous_back_2 = back_readings[2];
+    previous_back_3 = back_readings[3];
+    previous_back_4 = back_readings[4];
+    previous_front_0 = front_readings[0];
+    previous_front_1 = front_readings[1];
+    previous_front_2 = front_readings[2];
+    previous_front_3 = front_readings[3];
+    previous_front_4 = front_readings[4];
+  }
+  cnt = 0;
+  move_stop();
+}
+void move_backblock(int num_block, int given_speed)//后退n格
+{
+  move_back_pid(given_speed);
+  //开始爬格子
+  while(1)
+  {
+    if(cnt >= num_block) break;
+    move_back_pid(given_speed);
+
+    if(back_crossing_line() == 1){
+      cnt += 1;
+      Serial.println(cnt);
+    }
+    previous_back_0 = back_readings[0];
+    previous_back_1 = back_readings[1];
+    previous_back_2 = back_readings[2];
+    previous_back_3 = back_readings[3];
+    previous_back_4 = back_readings[4];
+    previous_front_0 = front_readings[0];
+    previous_front_1 = front_readings[1];
+    previous_front_2 = front_readings[2];
+    previous_front_3 = front_readings[3];
+    previous_front_4 = front_readings[4];
+  }
+  cnt = 0;
+  move_stop();
+}
+
+
+//1.1-------开向柱子的最后一格---------
+void move_lastblock()
+{
+  int myspeed = 100;
+  int dt = 1050;//-----------------------------------------------------------------------------------
+  move_pid(100);
+  delay(dt);
+  move_stop();
+}
+
+
+//-----------2.转90度---------------
+void turn_clockwise90()
+{
+  int swerving_speed = TurnSpeed;
+  int swerving_time = TurnTime;//需要调参数！！！！！
+  move_clockwise(swerving_speed);
+  delay(swerving_time);
+  move_stop();
+}
+void turn_back_clockwise90()
+{
+  move_back_pid(100);
+  delay(600);
+  int swerving_speed = TurnSpeed;
+  int swerving_time = TurnTime;//需要调参数！！！！！
+  move_clockwise(swerving_speed);
+  delay(swerving_time);
+  move_stop();
+}
+void turn_anticlockwise90()
+{
+  int swerving_speed = TurnSpeed;
+  int swerving_time = TurnTime;
+  move_unclockwise(swerving_speed);
+  delay(swerving_time);
+  move_stop();
+}
+void turn_back_anticlockwise90()
+{
+  move_back_pid(100);
+  delay(600);
+  int swerving_speed = TurnSpeed;
+  int swerving_time = TurnTime;
+  move_unclockwise(swerving_speed);
+  delay(swerving_time);
+  move_stop();
+}
+
+void setup() {
+  init_motors();
+  init_sensors();
+  Serial.begin(9600);
+}
+
+void loop() {
+  move_blocks(2,100);
+  turn_clockwise90();
+  move_blocks(2,100);
+  while(1);
+
+}
